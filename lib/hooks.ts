@@ -198,7 +198,7 @@ function parseImages(value: unknown): string[] | null {
   return null;
 }
 
-function normalizePost(p: Record<string, unknown>): Post {
+export function normalizePost(p: Record<string, unknown>): Post {
   return {
     ...(p as unknown as Post),
     tags: parseTags(p.tags),
@@ -535,40 +535,22 @@ export function useAnnouncementPosts() {
   return useTaggedPosts(['announcement', 'announcements']);
 }
 
-export function usePostShares(postId: string) {
-  const [shares, setShares] = useState<number | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    void fetchJson<{ data: Post }>(`/api/posts/${postId}`)
-      .then(({ data }) => {
-        if (!cancelled) setShares(Number(data?.shares_count) || 0);
-      })
-      .catch(() => {
-        if (!cancelled) setShares(0);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [postId]);
+export function usePostShares(postId: string, initialCount = 0) {
+  const [shares, setShares] = useState<number>(initialCount);
 
+  const socket = useSocket();
   useEffect(() => {
-    if (!postId) return;
-    let cancelled = false;
-    const refresh = () => {
-      void fetchJson<{ data: Post }>(`/api/posts/${postId}`)
-        .then(({ data }) => {
-          if (!cancelled) setShares(Number(data?.shares_count) || 0);
-        })
-        .catch(() => {});
+    if (!socket || !postId) return;
+    const onShare = (data: unknown) => {
+      const d = data as { post_id?: string };
+      if (d?.post_id !== postId) return;
+      setShares((prev) => prev + 1);
     };
-    const id = window.setInterval(refresh, 15000);
-    return () => {
-      cancelled = true;
-      window.clearInterval(id);
-    };
-  }, [postId]);
+    socket.on(WS_EVENTS.POST_SHARE, onShare);
+    return () => { socket.off(WS_EVENTS.POST_SHARE, onShare); };
+  }, [socket, postId]);
 
-  return { shares, loading: shares === null };
+  return { shares, loading: false };
 }
 
 export function usePostLikes(postId: string, meEmail: string, initialCount = 0) {
@@ -625,27 +607,38 @@ export function usePostLikes(postId: string, meEmail: string, initialCount = 0) 
   return { liked, likes, applyLikeState, loading: false };
 }
 
-export function useComments(postId: string) {
+export function useComments(postId: string, lazy = false) {
   const [comments, setComments] = useState<Comment[] | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!lazy);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
+  const [fetchRequested, setFetchRequested] = useState(!lazy);
+
+  const loadComments = useCallback(() => {
+    setFetchRequested(true);
+  }, []);
+
   useEffect(() => {
+    if (!fetchRequested) return;
+    let cancelled = false;
     const load = async () => {
       try {
         const { comments: list } = await fetchJson<{ comments: Record<string, unknown>[] }>(
           `/api/posts/${postId}/comments`
         );
-        setComments((list ?? []) as unknown as Comment[]);
-        setHasMore(false);
+        if (!cancelled) {
+          setComments((list ?? []) as unknown as Comment[]);
+          setHasMore(false);
+        }
       } catch {
-        setComments([]);
+        if (!cancelled) setComments([]);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
     void load();
-  }, [postId]);
+    return () => { cancelled = true; };
+  }, [postId, fetchRequested]);
 
   const socket = useSocket();
   useEffect(() => {
@@ -682,7 +675,7 @@ export function useComments(postId: string) {
     setHasMore(false);
   }, []);
 
-  return { comments, loading, loadingMore, hasMore, loadMore };
+  return { comments, loading, loadingMore, hasMore, loadMore, loadComments };
 }
 
 export function useConversations(me: string) {

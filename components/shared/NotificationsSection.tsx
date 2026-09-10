@@ -1,10 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Bell, Heart, MessageSquare, Share2, UserPlus, CalendarCheck, ShieldCheck, CheckCheck, FileText } from 'lucide-react';
+import { Bell, Heart, MessageSquare, Share2, UserPlus, CalendarCheck, ShieldCheck, CheckCheck, FileText, Volume2, VolumeX } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useNotifications } from '@/lib/hooks';
 import { useSession } from './session';
+import { isNotificationSoundEnabled, setNotificationSoundEnabled } from './RealtimeAlerts';
+import { StaggerGroup, StaggerItem } from './anim';
 import type { Notification } from '@/lib/hooks';
 
 const TYPE_META: Record<string, { icon: React.ReactNode; bg: string; color: string }> = {
@@ -38,6 +40,13 @@ export default function NotificationsSection() {
 
   const { notifications, loading } = useNotifications(me, myRole);
   const [localRead, setLocalRead] = useState<Set<string>>(new Set());
+  const [soundOn, setSoundOn] = useState(true);
+
+  useEffect(() => {
+    // Read persisted sound preference post-hydration to avoid SSR mismatch.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sync after hydration
+    setSoundOn(isNotificationSoundEnabled());
+  }, []);
 
   useEffect(() => {
     fetch('/api/notifications/cleanup', { method: 'POST' }).catch(() => {});
@@ -66,7 +75,7 @@ export default function NotificationsSection() {
       const res = await fetch('/api/conversations');
       if (!res.ok) return null;
       const { conversations } = await res.json();
-      const conv = (conversations ?? []).find((c: any) => {
+      const conv = (conversations ?? [] as { id: string; participant_ids: string }[]).find((c: { id: string; participant_ids: string }) => {
         try {
           const ids = JSON.parse(c.participant_ids);
           return Array.isArray(ids) && ids.length === 2 && ids.includes(actorEmail.toLowerCase());
@@ -132,16 +141,31 @@ export default function NotificationsSection() {
             {unreadCount > 0 ? `You have ${unreadCount} unread notification${unreadCount > 1 ? 's' : ''}` : 'You are all caught up'}
           </p>
         </div>
-        <button
-          onClick={handleMarkAll}
-          className="btn btn-ghost btn-sm gap-2"
-          style={{ color: 'var(--primary)', border: '1.5px solid var(--surface-border)' }}
-        >
-          <CheckCheck size={15} /> Mark all as read
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              const next = !soundOn;
+              setSoundOn(next);
+              setNotificationSoundEnabled(next);
+            }}
+            className="btn btn-ghost btn-sm gap-1.5"
+            style={{ color: soundOn ? 'var(--primary)' : 'var(--text-lighter)', border: '1.5px solid var(--surface-border)' }}
+            title={soundOn ? 'Mute notification sounds' : 'Enable notification sounds'}
+          >
+            {soundOn ? <Volume2 size={14} /> : <VolumeX size={14} />}
+            {soundOn ? 'Sound on' : 'Sound off'}
+          </button>
+          <button
+            onClick={handleMarkAll}
+            className="btn btn-ghost btn-sm gap-2"
+            style={{ color: 'var(--primary)', border: '1.5px solid var(--surface-border)' }}
+          >
+            <CheckCheck size={15} /> Mark all as read
+          </button>
+        </div>
       </div>
 
-      <div className="bg-base-100 backdrop-blur-xl" style={{ borderRadius: 'var(--radius-lg)', border: '1px solid var(--surface-border)', boxShadow: 'var(--shadow-sm)', overflow: 'hidden' }}>
+      <StaggerGroup className="bg-base-100 backdrop-blur-xl" style={{ borderRadius: 'var(--radius-lg)', border: '1px solid var(--surface-border)', boxShadow: 'var(--shadow-sm)', overflow: 'hidden' }}>
         {loading && (
           <div className="text-center py-16 text-sm" style={{ color: 'var(--text-lighter)' }}>Loading...</div>
         )}
@@ -155,31 +179,32 @@ export default function NotificationsSection() {
           const meta = TYPE_META[n.type] ?? TYPE_META.event;
           const read = isRead(n);
           return (
-            <button
-              key={n.id}
-              onClick={() => handleClick(n)}
-              className="w-full flex items-start gap-4 px-5 py-4 text-left cursor-pointer transition-colors duration-150 hover:bg-(--surface-soft)"
-              style={{ borderBottom: i < (notifications?.length ?? 0) - 1 ? '1px solid var(--surface)' : 'none', background: read ? 'transparent' : 'rgba(40, 114, 161,0.04)' }}
-            >
-              <div
-                className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
-                style={{ background: meta.bg, color: meta.color }}
+            <StaggerItem key={n.id}>
+              <button
+                onClick={() => handleClick(n)}
+                className="w-full flex items-start gap-4 px-5 py-4 text-left cursor-pointer transition-colors duration-150 hover:bg-(--surface-soft)"
+                style={{ borderBottom: i < (notifications?.length ?? 0) - 1 ? '1px solid var(--surface)' : 'none', background: read ? 'transparent' : 'rgba(40, 114, 161,0.04)' }}
               >
-                {meta.icon}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm" style={{ color: read ? 'var(--text-light)' : 'var(--accent)', fontWeight: read ? 400 : 600 }}>
-                  {n.message}
-                </p>
-                <p className="text-xs mt-0.5" style={{ color: 'var(--text-lighter)' }}>{timeAgo(n.created_at * 1000)}</p>
-              </div>
-              {!read && (
-                <span className="mt-1.5 shrink-0 w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--primary)' }} />
-              )}
-            </button>
+                <div
+                  className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
+                  style={{ background: meta.bg, color: meta.color }}
+                >
+                  {meta.icon}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm" style={{ color: read ? 'var(--text-light)' : 'var(--accent)', fontWeight: read ? 400 : 600 }}>
+                    {n.message}
+                  </p>
+                  <p className="text-xs mt-0.5" style={{ color: 'var(--text-lighter)' }}>{timeAgo(n.created_at * 1000)}</p>
+                </div>
+                {!read && (
+                  <span className="mt-1.5 shrink-0 w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--primary)' }} />
+                )}
+              </button>
+            </StaggerItem>
           );
         })}
-      </div>
+      </StaggerGroup>
     </div>
   );
 }

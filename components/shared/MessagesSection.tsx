@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { ReactNode } from 'react';
@@ -165,11 +165,11 @@ function fileIcon(mime: string, name: string) {
 }
 
 function MessageAttachments({ convId, attachments, mine }: { convId: string; attachments: MessageAttachment[]; mine: boolean }) {
-  const postEntries = attachments.filter(isSharedPost);
-  const fileEntries = attachments.filter((a) => !isSharedPost(a)) as ChatAttachment[];
+  const postEntries = useMemo(() => attachments.filter(isSharedPost), [attachments]);
+  const fileEntries = useMemo(() => attachments.filter((a) => !isSharedPost(a)) as ChatAttachment[], [attachments]);
   const [urls, setUrls] = useState<Record<string, { url: string; downloadUrl: string }> | null>(null);
   const [error, setError] = useState(false);
-  const pathsKey = fileEntries.map((a) => a.path).join('\u0000');
+  const pathsKey = useMemo(() => fileEntries.map((a) => a.path).join('\u0000'), [fileEntries]);
   useEffect(() => {
     if (fileEntries.length === 0) return;
     let cancelled = false;
@@ -178,7 +178,7 @@ function MessageAttachments({ convId, attachments, mine }: { convId: string; att
       .then((data) => { if (!cancelled) setUrls(data.urls ?? {}); })
       .catch(() => { if (!cancelled) setError(true); });
     return () => { cancelled = true; };
-  }, [convId, pathsKey, fileEntries]);
+  }, [convId, pathsKey, fileEntries.length]);
 
   if (!attachments || attachments.length === 0) return null;
   return (
@@ -438,13 +438,13 @@ export default function MessagesSection() {
   const [readMap, setReadMap] = useState<Record<string, { email: string; readAt: number }[]>>({});
   const [readOpenFor, setReadOpenFor] = useState<string | null>(null);
   const MESSAGE_PAGE = 20;
-  const [prevSelectedId, setPrevSelectedId] = useState<string | null>(selectedId);
-  if (prevSelectedId !== selectedId) {
-    setPrevSelectedId(selectedId);
+  useEffect(() => {
+    // Reset conversation state when switching conversations.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset on conversation switch
     setMessages(null);
     setHasMoreMsgs(false);
     setMentionQuery(null);
-  }
+  }, [selectedId]);
 
   const lastReadMarkRef = useRef(0);
   const markMessagesRead = useCallback(() => {
@@ -515,6 +515,8 @@ export default function MessagesSection() {
 
   useEffect(() => {
     if (!me) return;
+    // Load conversations on mount / when the loader changes.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- initial conversation load
     void reloadConversations();
   }, [reloadConversations]);
 
@@ -1283,9 +1285,9 @@ export default function MessagesSection() {
   );
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-[18px] h-full min-h-0">
+    <div className="flex flex-col lg:flex-row gap-[18px] h-full min-h-0">
       <div
-        className={`bg-base-100 backdrop-blur-xl flex-col max-h-[72vh] lg:max-h-none lg:h-full lg:min-h-0 ${selected ? 'hidden lg:flex' : 'flex'}`}
+        className={`bg-base-100 backdrop-blur-xl flex-col max-h-[72vh] lg:max-h-none lg:h-full lg:min-h-0 ${selected ? 'hidden lg:flex' : 'flex'} lg:w-[320px] lg:flex-none lg:shrink-0`}
         style={{ borderRadius: 'var(--radius-lg)', border: '1px solid var(--surface-border)', boxShadow: 'var(--shadow-sm)', overflow: 'hidden' }}
       >
         <div className="flex-shrink-0" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 18px', borderBottom: '1px solid var(--surface)' }}>
@@ -1375,6 +1377,7 @@ export default function MessagesSection() {
                   initial={{ opacity: 0, x: -40 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -100, height: 0 }}
+                  whileHover={{ backgroundColor: 'rgba(40,114,161,0.04)' }}
                   transition={{ type: 'spring', stiffness: 380, damping: 30 }}
                   className="relative group"
                 >
@@ -1436,7 +1439,7 @@ export default function MessagesSection() {
       </div>
 
       <div
-        className={`bg-base-100 backdrop-blur-xl flex-col ${selected ? 'flex h-[calc(100dvh-100px)]' : 'hidden'} lg:flex lg:h-full lg:min-h-0`}
+        className={`bg-base-100 backdrop-blur-xl flex-col flex-1 min-h-0 ${selected ? 'flex' : 'hidden lg:flex'}`}
         style={{ borderRadius: 'var(--radius-lg)', border: '1px solid var(--surface-border)', boxShadow: 'var(--shadow-sm)', overflow: 'hidden' }}
       >
         {!selected ? (
@@ -1894,8 +1897,22 @@ export default function MessagesSection() {
       </div>
 
       {showNewChat && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'var(--modal-bg)' }}>
-          <div className="bg-base-100 w-full max-w-lg" style={{ borderRadius: 'var(--radius-lg)', border: '1px solid var(--surface-border)', boxShadow: 'var(--shadow-lg)', overflow: 'hidden' }}>
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: 'rgba(0,0,0,0.35)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.94, y: 12 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.96, y: 8 }}
+            transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+            className="bg-base-100 w-full max-w-lg"
+            style={{ borderRadius: 'var(--radius-lg)', border: '1px solid var(--surface-border)', boxShadow: 'var(--shadow-lg)', overflow: 'hidden' }}
+          >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--surface)' }}>
               <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--accent)' }}>
                 {chatMode === 'group' ? 'New Group Chat' : 'New Message'}
@@ -2101,8 +2118,8 @@ export default function MessagesSection() {
                 </div>
               </div>
             )}
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       )}
 
       {showManage && selected && (

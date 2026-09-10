@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { User, Newspaper, BadgeCheck, Pencil, Trash2, Check, X, LogOut, ImageOff } from 'lucide-react';
 import { useSocket } from '@/lib/realtime/context';
 import { WS_EVENTS } from '@/lib/realtime/events';
+import { normalizePost } from '@/lib/hooks';
 import type { Post } from '@/lib/hooks';
 import { usePostImageDownload } from '@/lib/usePostImage';
 import PostImageDownload from './PostImageDownload';
@@ -143,7 +144,7 @@ export default function ProfileSection() {
           })
         );
         const merged = lists.flat().sort((a, b) => b.created_at - a.created_at);
-        setMyPosts(merged);
+        setMyPosts(merged.map((p) => normalizePost(p as unknown as Record<string, unknown>)));
       } catch {
         setMyPosts((prev) => prev ?? []);
       }

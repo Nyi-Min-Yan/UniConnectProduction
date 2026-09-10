@@ -32,8 +32,27 @@ const TYPE_META: Record<string, { icon: React.ReactNode }> = {
 };
 
 let notificationAudio: HTMLAudioElement | null = null;
+let soundEnabled: boolean = (() => {
+  try { return localStorage.getItem('uniconnect-sound') !== 'off'; } catch { return true; }
+})();
+
+export function isNotificationSoundEnabled(): boolean {
+  try {
+    return localStorage.getItem('uniconnect-sound') !== 'off';
+  } catch {
+    return true;
+  }
+}
+
+export function setNotificationSoundEnabled(enabled: boolean): void {
+  soundEnabled = enabled;
+  try {
+    localStorage.setItem('uniconnect-sound', enabled ? 'on' : 'off');
+  } catch {}
+}
 
 function playNotificationSound(): void {
+  if (!isNotificationSoundEnabled()) return;
   try {
     if (!notificationAudio) notificationAudio = new Audio('/0_phone.mp3');
     notificationAudio.currentTime = 0;
@@ -82,16 +101,18 @@ export default function RealtimeAlerts() {
         const a = notificationAudio ?? new Audio('/0_phone.mp3');
         notificationAudio = a;
         a.volume = 0;
-        void a.play().catch(() => {});
+        void a.play().then(() => { a.pause(); a.currentTime = 0; }).catch(() => {});
       } catch {
         // audio errors are intentionally ignored
       }
     };
     window.addEventListener('pointerdown', unlock, { once: true });
     window.addEventListener('keydown', unlock, { once: true });
+    window.addEventListener('touchstart', unlock, { once: true });
     return () => {
       window.removeEventListener('pointerdown', unlock);
       window.removeEventListener('keydown', unlock);
+      window.removeEventListener('touchstart', unlock);
     };
   }, []);
 

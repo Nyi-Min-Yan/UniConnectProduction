@@ -4166,7 +4166,7 @@ export function SharedTimetableWorkspace({ generationId, onBack, onNotFound, ini
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <GenerationStatusPill status={status} />
           {isHod && (
             <button
@@ -4462,7 +4462,7 @@ export function SharedTimetableWorkspace({ generationId, onBack, onNotFound, ini
                   Weekly Grid {visibleSchedules ? `(${visibleSchedules.length} schedules${activeViewSemester !== 'all' ? ` · Semester ${activeViewSemester}` : ' · overview'}${activeViewSection !== 'all' ? ` · Section ${activeViewSection}` : ''})` : ''}
                 </span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                 {sectionScope && (
                   <span
                     style={{
@@ -5883,6 +5883,78 @@ function GeneratedTimetablesCard({
   );
 }
 
+function TimetableGenerationSkeleton() {
+  return (
+    <div role="status" aria-label="Loading timetable generation">
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4, flexWrap: 'wrap', gap: 10 }}>
+        <div>
+          <div className="skeleton h-7 w-64" />
+          <div className="skeleton h-3.5 w-80 mt-3" />
+        </div>
+        <div className="skeleton h-9 w-40" style={{ borderRadius: 'var(--radius-md)' }} />
+      </div>
+
+      <div
+        className="bg-base-100 backdrop-blur-xl mt-6"
+        style={{ borderRadius: 'var(--radius-lg)', border: '1px solid var(--surface-border)', boxShadow: 'var(--shadow-sm)', overflow: 'hidden' }}
+      >
+        <div style={{ padding: '20px 24px' }}>
+          <div className="flex items-center gap-3 mb-4">
+            <div className="skeleton w-11 h-11 rounded-2xl" />
+            <div className="flex-1">
+              <div className="skeleton h-4 w-52" />
+              <div className="skeleton h-3 w-72 mt-2" />
+            </div>
+          </div>
+          <div className="skeleton h-3 w-full" />
+          <div className="skeleton h-3 w-4/5 mt-2" />
+          <div className="skeleton h-9 w-28 mt-5" style={{ borderRadius: 'var(--radius-sm)' }} />
+        </div>
+      </div>
+
+      <div
+        className="bg-base-100 backdrop-blur-xl mt-4"
+        style={{ borderRadius: 'var(--radius-lg)', border: '1px solid var(--surface-border)', boxShadow: 'var(--shadow-sm)', overflow: 'hidden' }}
+      >
+        <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--surface)' }}>
+          <div className="skeleton h-4 w-44" />
+        </div>
+        <div style={{ padding: '12px 20px' }}>
+          <div className="flex items-center gap-3 py-2.5" style={{ borderBottom: '1px solid var(--divider)' }}>
+            <div className="flex-1">
+              <div className="skeleton h-3.5 w-36" />
+              <div className="skeleton h-3 w-56 mt-2" />
+            </div>
+            <div className="skeleton h-5 w-16" style={{ borderRadius: 999 }} />
+          </div>
+          <div className="flex items-center gap-3 py-2.5" style={{ borderBottom: '1px solid var(--divider)' }}>
+            <div className="flex-1">
+              <div className="skeleton h-3.5 w-32" />
+              <div className="skeleton h-3 w-52 mt-2" />
+            </div>
+            <div className="skeleton h-5 w-16" style={{ borderRadius: 999 }} />
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-base-100 backdrop-blur-xl mt-4" style={{ borderRadius: 'var(--radius-lg)', border: '1px solid var(--surface-border)', boxShadow: 'var(--shadow-sm)', overflow: 'hidden' }}>
+        <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--surface)' }}>
+          <div className="skeleton h-4 w-32" />
+        </div>
+        <div style={{ padding: '12px 20px' }}>
+          <div className="flex items-center gap-3 py-2.5" style={{ borderBottom: '1px solid var(--divider)' }}>
+            <div className="flex-1">
+              <div className="skeleton h-3.5 w-36" />
+              <div className="skeleton h-3 w-48 mt-2" />
+            </div>
+            <div className="skeleton h-5 w-16" style={{ borderRadius: 999 }} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function TimetableGenerationSection() {
   const router = useRouter();
   const lastEditStartRef = useRef<string | null>(null);
@@ -5913,6 +5985,9 @@ export function TimetableGenerationSection() {
   // the "Generation session not found" dead end).
   const lastManagementStartRef = useRef<string | null>(null);
   const deadGenerationIdsRef = useRef<Set<string>>(new Set());
+  // Prevents spamming the "lobby is active" alert / auto-join for the same
+  // lobby across re-renders, polling refreshes and reconnect snapshots.
+  const lobbyEntryRef = useRef<{ lobbyId: string; announced: boolean; joinTried: boolean }>({ lobbyId: '', announced: false, joinTried: false });
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -5974,6 +6049,48 @@ export function TimetableGenerationSection() {
       // transient
     }
   }, []);
+
+  // An active lobby should carry the HOD into the shared workspace. Announce
+  // it first, then navigate automatically. If the generation session is not
+  // linked to the lobby yet (OPEN status), join so this HOD is on the
+  // membership-gated SSE stream; the MANAGEMENT_STARTED event then completes
+  // the redirect the moment generation is dispatched.
+  useEffect(() => {
+    if (!activeLobby || workspaceGenerationId || draftDismissed) return;
+    const entry = lobbyEntryRef.current;
+    const lobbyId = activeLobby.lobbyId;
+    const genId = activeLobby.generationId;
+    const isMember = activeLobby.members.some((m) => m.staffId === staff?.staffId);
+
+    if (staff && isMember === false && !entry.joinTried) {
+      entry.lobbyId = lobbyId;
+      entry.joinTried = true;
+      entry.announced = true;
+      toast.info('A generation lobby is active — opening the shared workspace');
+      void joinGenerationLobby(lobbyId)
+        .then(refreshLobbies)
+        .catch(() => {});
+      return;
+    }
+
+    if (entry.lobbyId !== lobbyId || !entry.announced) {
+      entry.lobbyId = lobbyId;
+      entry.announced = true;
+      toast.info('A generation lobby is active — opening the shared workspace');
+    }
+
+    if (genId && !deadGenerationIdsRef.current.has(genId)) {
+      lastManagementStartRef.current = genId;
+      setDraftDismissed(false);
+      setWorkspaceGenerationId(genId);
+    }
+  }, [activeLobby, workspaceGenerationId, draftDismissed, staff, refreshLobbies]);
+
+  useEffect(() => {
+    // Reset so backing out and later returning to an active lobby re-announces
+    // and re-enters rather than believing it was already handled.
+    lobbyEntryRef.current = { lobbyId: '', announced: false, joinTried: false };
+  }, [workspaceGenerationId]);
 
   // Discovery channel: SSE is lobby-scoped and membership-gated, so a HOD who
   // has not joined any lobby has no stream and would never learn that a lobby
@@ -6288,10 +6405,7 @@ onNotFound={(goneId) => {
       )}
 
       {loading ? (
-        <div className="flex flex-col items-center justify-center py-24 gap-3">
-          <Loader2 size={22} className="animate-spin" style={{ color: 'var(--primary)' }} />
-          <div style={{ fontSize: 13, color: 'var(--text-lighter)' }}>Loading generation hub...</div>
-        </div>
+        <TimetableGenerationSkeleton />
       ) : !staff ? (
         <div style={{ marginTop: 18 }}>
           <EmptyStateCard

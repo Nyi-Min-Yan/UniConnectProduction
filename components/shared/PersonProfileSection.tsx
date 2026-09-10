@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useSocket } from '@/lib/realtime/context';
 import { WS_EVENTS } from '@/lib/realtime/events';
-import type { Post, Activity } from '@/lib/hooks';
+import { normalizePost, type Post, type Activity } from '@/lib/hooks';
 import { useSession } from './session';
 import FeedPost from './FeedPost';
 import { useUniversityPeople, useUniversityRaw } from './useUniversityPeople';
@@ -99,7 +99,7 @@ export default function PersonProfileSection({ email }: { email: string }) {
       try {
         const res = await fetch(`/api/posts?status=approved&author=${encodeURIComponent(email)}`);
         const json = await res.json();
-        setPosts((json.posts ?? []) as Post[]);
+        setPosts((json.posts ?? []).map((p: Record<string, unknown>) => normalizePost(p)) as Post[]);
       } catch {
         setPosts([]);
       }
@@ -116,13 +116,13 @@ export default function PersonProfileSection({ email }: { email: string }) {
       setPosts((prev) => {
         if (!prev) return prev;
         if (prev.some((p) => p.id === row.id)) return prev;
-        return [row as Post, ...prev];
+        return [normalizePost(row as unknown as Record<string, unknown>) as Post, ...prev];
       });
     };
     const onUpdated = (data: unknown) => {
       const row = data as Partial<Post>;
       if (!row.id || !qualifies(row)) return;
-      setPosts((prev) => (prev ? prev.map((p) => (p.id === row.id ? { ...p, ...row } : p)) : prev));
+      setPosts((prev) => (prev ? prev.map((p) => (p.id === row.id ? normalizePost({ ...p, ...row }) : p)) : prev));
     };
     const onDeleted = (data: unknown) => {
       const { id } = data as { id: string };

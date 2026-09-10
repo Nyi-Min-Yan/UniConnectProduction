@@ -225,6 +225,28 @@ body {
   animation: notif-blink 0.55s ease-in-out 3;
 }
 
+/* DaisyUI-style dialogs animate in. */
+@keyframes modal-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes modal-pop {
+  from { opacity: 0; transform: scale(0.95) translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+dialog.modal.modal-open[open] {
+  animation: modal-fade 0.2s ease-out;
+}
+dialog.modal.modal-open[open] .modal-box {
+  animation: modal-pop 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.modal-mask {
+  animation: modal-fade 0.2s ease-out;
+}
+.modal-mask .modal-card {
+  animation: modal-pop 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
 /* Native dropdown lists must match the active theme (inline-styled <select>
    elements inherit color-scheme from the root, but <option> popups need an
    explicit background/color or the text is unreadable in some browsers). */

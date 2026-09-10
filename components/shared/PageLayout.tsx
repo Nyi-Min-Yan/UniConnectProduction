@@ -2,10 +2,11 @@
 
 import { useRef, useCallback, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { Toaster } from 'sonner';
+import { AnimatePresence } from 'framer-motion';
 import Sidebar from './Sidebar';
 import Navbar from './Navbar';
 import RealtimeAlerts from './RealtimeAlerts';
+import { MotionPage } from './anim';
 import { useSession } from './session';
 import { MAIN_NAV, type UserRole } from './constants';
 
@@ -58,7 +59,11 @@ export default function PageLayout({ role, children }: PageLayoutProps) {
         <RealtimeAlerts />
         <Navbar onMenuToggle={toggleDrawer} basePath={basePath} />
         <main className="flex-1 min-h-0 overflow-y-auto p-4 lg:p-7">
-          <div className="max-w-[1280px] mx-auto h-full">{children}</div>
+          <div className="max-w-[1280px] mx-auto h-full">
+            <AnimatePresence mode="wait" initial={false}>
+              <MotionPage key={pathname} className="h-full min-h-0">{children}</MotionPage>
+            </AnimatePresence>
+          </div>
         </main>
       </div>
       <div className="drawer-side z-50">

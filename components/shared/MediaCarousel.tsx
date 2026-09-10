@@ -12,8 +12,9 @@ interface MediaCarouselProps {
 }
 
 export default function MediaCarousel({ urls, alt = '', maxHeight = 480, height, onOpenImage }: MediaCarouselProps) {
+  const list = Array.isArray(urls) ? urls : [];
   const [index, setIndex] = useState(0);
-  const total = urls.length;
+  const total = list.length;
   if (total === 0) return null;
   const at = index >= total ? 0 : index;
   const go = (dir: number) => setIndex((i) => (i + dir + total) % total);
@@ -30,14 +31,14 @@ export default function MediaCarousel({ urls, alt = '', maxHeight = 480, height,
       }}
     >
       <img
-        src={urls[at]}
+        src={list[at]}
         alt={alt}
         loading="lazy"
         className="w-full block"
         style={height
           ? { height: '100%', objectFit: 'contain', cursor: onOpenImage ? 'zoom-in' : 'default' }
           : { maxHeight, objectFit: 'contain', cursor: onOpenImage ? 'zoom-in' : 'default' }}
-        onClick={() => onOpenImage?.(urls[at])}
+        onClick={() => onOpenImage?.(list[at])}
       />
       {total > 1 && (
         <>
@@ -80,7 +81,7 @@ export default function MediaCarousel({ urls, alt = '', maxHeight = 480, height,
             className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1.5"
             style={{ zIndex: 2 }}
           >
-            {urls.map((_, i) => (
+            {list.map((_, i) => (
               <button
                 key={i}
                 type="button"

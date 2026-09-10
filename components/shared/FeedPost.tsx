@@ -42,7 +42,7 @@ function timeAgo(ts: number): string {
 // multi-MB transfer and trips the 30s request guard). Images are fetched
 // lazily per post, in parallel, each with its own request budget, so slow
 // images degrade gracefully instead of blanking the entire feed.
-function PostImage({ postId }: { postId: string }) {
+function PostImage({ postId, authorName }: { postId: string; authorName?: string }) {
   const { src, phase, progress, attemptsLeft } = usePostImageDownload(postId);
   const [showImage, setShowImage] = useState(false);
 
@@ -76,6 +76,7 @@ function PostImage({ postId }: { postId: string }) {
           onClose={() => setShowImage(false)}
           src={src}
           postId={postId}
+          authorName={authorName}
         />
       )}
     </>
@@ -123,8 +124,8 @@ export default function FeedPost({ post }: FeedPostProps) {
   }, [people, post.author_email, post.author_name]);
 
   const { liked, likes, applyLikeState } = usePostLikes(post.id, me, post.likes_count);
-  const { comments, loadingMore, hasMore, loadMore } = useComments(post.id);
-  const { shares } = usePostShares(post.id);
+  const { comments, loadingMore, hasMore, loadMore, loadComments } = useComments(post.id, true);
+  const { shares } = usePostShares(post.id, post.shares_count);
 
   const [showLikers, setShowLikers] = useState(false);
 
@@ -142,6 +143,7 @@ export default function FeedPost({ post }: FeedPostProps) {
   const [likePulse, setLikePulse] = useState(0);
   const [showDetail, setShowDetail] = useState(false);
   const [zoomSrc, setZoomSrc] = useState<string | null>(null);
+  const [zoomImages, setZoomImages] = useState<string[] | null>(null);
 
   const isMine = post.author_email === me;
   const isEdited = (post.updated_at ?? 0) > (post.created_at ?? 0);
@@ -425,19 +427,19 @@ export default function FeedPost({ post }: FeedPostProps) {
               urls={post.images ?? []}
               alt=""
               height={FEED_MEDIA_HEIGHT}
-              onOpenImage={(url) => setZoomSrc(url)}
+              onOpenImage={(url) => { setZoomSrc(url); setZoomImages(post.images ?? []); }}
             />
           </div>
         ) : post.image ? (
           <div
             className="mt-3 overflow-hidden flex justify-center cursor-zoom-in transition-opacity duration-200 hover:opacity-90"
             style={{ borderRadius: 'var(--radius-md)', border: '1px solid var(--surface-border)', boxShadow: '0 4px 16px rgba(0,0,0,0.04)', height: FEED_MEDIA_HEIGHT }}
-            onClick={() => setZoomSrc(post.image)}
+            onClick={() => { setZoomSrc(post.image!); setZoomImages(null); }}
           >
             <img src={post.image} alt="" className="w-full h-full" style={{ objectFit: 'contain' }} />
           </div>
         ) : (
-          <PostImage postId={post.id} />
+          <PostImage postId={post.id} authorName={authorName} />
         )}
         <div className="flex gap-[6px] mt-[10px] flex-wrap">
           {(post.item_status === 'lost' || post.item_status === 'found') && (
@@ -514,7 +516,7 @@ export default function FeedPost({ post }: FeedPostProps) {
             </button>
           </div>
           <button
-            onClick={() => { setShowComments(prev => !prev); setTimeout(() => commentInputRef.current?.focus(), 50); }}
+            onClick={() => { setShowComments(prev => { const next = !prev; if (next) loadComments(); return next; }); setTimeout(() => commentInputRef.current?.focus(), 50); }}
             className="flex items-center gap-[5px] text-xs font-semibold cursor-pointer transition-all px-2 py-1 rounded-lg"
             style={{ color: showComments ? 'var(--primary)' : 'var(--text-light)' }}
             onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--primary)'; e.currentTarget.style.backgroundColor = 'rgba(40, 114, 161,0.12)'; }}
@@ -630,9 +632,11 @@ export default function FeedPost({ post }: FeedPostProps) {
       {zoomSrc && (
         <ImageLightbox
           open={zoomSrc !== null}
-          onClose={() => setZoomSrc(null)}
+          onClose={() => { setZoomSrc(null); setZoomImages(null); }}
           src={zoomSrc}
           postId={post.id}
+          authorName={authorName}
+          images={zoomImages ?? undefined}
         />
       )}
 

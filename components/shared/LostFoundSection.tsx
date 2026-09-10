@@ -5,6 +5,7 @@ import { Plus, Search, X, Image as ImageIcon, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import FeedPost from './FeedPost';
 import { useLostFoundPosts } from '@/lib/hooks';
+import { StaggerGroup, StaggerItem, CARD_HOVER, CARD_TAP, CARD_TRANSITION } from './anim';
 
 const PRESET_LOCATIONS = ['Library', 'CS Building', 'Cafeteria'];
 
@@ -171,17 +172,20 @@ export default function LostFoundSection() {
             </div>
           </div>
         )}
-        <div className="flex flex-col gap-4">
+        <StaggerGroup className="flex flex-col gap-4">
           {filtered.map((post) => (
-            <div
+            <StaggerItem
               key={post.id}
+              whileHover={CARD_HOVER}
+              whileTap={CARD_TAP}
+              transition={CARD_TRANSITION}
               className="bg-base-100 backdrop-blur-xl"
               style={{ borderRadius: 'var(--radius-lg)', border: '1px solid var(--surface-border)', boxShadow: 'var(--shadow-sm)', overflow: 'hidden' }}
             >
               <FeedPost post={post} />
-            </div>
+            </StaggerItem>
           ))}
-        </div>
+        </StaggerGroup>
       </div>
 
       <dialog

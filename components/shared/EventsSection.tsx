@@ -7,6 +7,7 @@ import { useEvents, useEventRegistrations } from '@/lib/hooks';
 import { useSession } from './session';
 import EventRosterModal from './EventRosterModal';
 import EventDetailsModal from './EventDetailsModal';
+import { StaggerGroup, StaggerItem, CARD_HOVER, CARD_TAP, CARD_TRANSITION } from './anim';
 
 interface EventRow {
   id: string;
@@ -248,14 +249,14 @@ export default function EventsSection() {
       )}
 
       {filtered.length > 0 && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <StaggerGroup className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {filtered.map((e) => {
             const style = CATEGORY_STYLE[e.category] ?? CATEGORY_STYLE.Other;
             const reg = registrations?.[e.id];
             const full = !!e.max_attendees && (reg?.count ?? 0) >= e.max_attendees;
             const canDelete = canCreate || e.created_by === me;
             return (
-              <div key={e.id} className="bg-base-100 backdrop-blur-xl" style={{ borderRadius: 'var(--radius-lg)', border: '1px solid var(--surface-border)', boxShadow: 'var(--shadow-sm)', overflow: 'hidden' }}>
+              <StaggerItem key={e.id} whileHover={CARD_HOVER} whileTap={CARD_TAP} transition={CARD_TRANSITION} className="bg-base-100 backdrop-blur-xl" style={{ borderRadius: 'var(--radius-lg)', border: '1px solid var(--surface-border)', boxShadow: 'var(--shadow-sm)', overflow: 'hidden' }}>
                 <figure
                   onClick={() => e.image_url && setDetailEvent(e)}
                   className="w-full overflow-hidden flex items-center justify-center"
@@ -366,15 +367,15 @@ export default function EventsSection() {
                     )}
                   </div>
                 </div>
-              </div>
+              </StaggerItem>
             );
           })}
-        </div>
+        </StaggerGroup>
       )}
 
       {creating && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(2,6,23,0.5)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-          <div className="bg-base-100" style={{ width: '100%', maxWidth: 520, borderRadius: 'var(--radius-lg)', border: '1px solid var(--surface-border)', boxShadow: '0 20px 60px rgba(0,0,0,0.3)', overflow: 'hidden' }}>
+        <div className="modal-mask" style={{ position: 'fixed', inset: 0, background: 'rgba(2,6,23,0.5)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div className="modal-card bg-base-100" style={{ width: '100%', maxWidth: 520, borderRadius: 'var(--radius-lg)', border: '1px solid var(--surface-border)', boxShadow: '0 20px 60px rgba(0,0,0,0.3)', overflow: 'hidden' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 22px', borderBottom: '1px solid var(--surface)' }}>
               <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: 8 }}>
                 <CalendarCheck size={16} /> Create Event

@@ -6,6 +6,7 @@ import FeedComposer from './FeedComposer';
 import FeedPost from './FeedPost';
 import { useFeedPosts } from '@/lib/hooks';
 import { useSession } from './session';
+import { StaggerGroup, StaggerItem, CARD_HOVER, CARD_TAP, CARD_TRANSITION } from './anim';
 import type { Post } from '@/lib/hooks';
 
 const normToken = (s: string) => s.replace(/^#/, '').toLowerCase().replace(/[^a-z0-9]/gi, '');
@@ -180,18 +181,21 @@ export default function FeedSection() {
           <p className="text-sm">{hashtag ? `No posts with #${hashtag} yet.` : 'No posts yet — be the first to share something with the university.'}</p>
         </div>
       )}
-      <div className="flex flex-col gap-4">
+      <StaggerGroup className="flex flex-col gap-4" key={hashtag ?? 'all'}>
         {displayPosts.map((post) => (
-          <div
+          <StaggerItem
             key={post.id}
             id={`post-${post.id}`}
+            whileHover={CARD_HOVER}
+            whileTap={CARD_TAP}
+            transition={CARD_TRANSITION}
             className={`bg-base-100 backdrop-blur-xl ${blinkId === post.id ? 'notif-blink' : ''}`}
             style={{ borderRadius: 'var(--radius-lg)', border: '1px solid var(--surface-border)', boxShadow: 'var(--shadow-sm)', overflow: 'hidden' }}
           >
             <FeedPost post={post} />
-          </div>
+          </StaggerItem>
         ))}
-      </div>
+      </StaggerGroup>
       {hasMore && (
         <div ref={sentinelRef} className="text-center py-6 text-xs" style={{ color: 'var(--text-lighter)' }}>
           {loadingMore ? 'Loading more...' : 'Scroll for more'}

@@ -127,7 +127,7 @@ function ActivitySlide({ activity, playing, onTogglePlay, onOpenComments, canMan
   const [showDetails, setShowDetails] = useState(false);
   const [shareMsg, setShareMsg] = useState('');
   const [downloading, setDownloading] = useState(false);
-  const [muted, setMuted] = useState(true);
+  const [muted, setMuted] = useState(false);
   const toggleMute = () => setMuted((m) => !m);
 
   const downloadVideo = async () => {
