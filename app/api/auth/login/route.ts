@@ -1,0 +1,87 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { sessionCookieOptions } from '@/lib/auth';
+
+const BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+
+const SESSION_COOKIE = 'uniconnect_session';
+const BACKEND_COOKIE = 'uniconnect_backend';
+
+function clientRole(roleName: string, unitName?: string): string {
+  switch (roleName) {
+    case 'SYSTEM_ADMIN':
+      return 'admin';
+    case 'STUDENT':
+      return 'student';
+    case 'STAFF':
+      return unitName && unitName.toLowerCase().includes('student affair') ? 'student-affair' : 'lecturer';
+    default:
+      return 'student';
+  }
+}
+
+function rolePath(role: string): string {
+  switch (role) {
+    case 'admin':
+      return '/admin';
+    case 'student-affair':
+      return '/student-affair';
+    case 'lecturer':
+      return '/lecturer';
+    default:
+      return '/student';
+  }
+}
+
+export async function POST(request: NextRequest) {
+  const body = await request.json().catch(() => null);
+  if (!body?.email || !body?.password) {
+    return NextResponse.json({ message: 'Email and password are required' }, { status: 400 });
+  }
+
+  const res = await fetch(`${BASE}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: body.email, password: body.password }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    return NextResponse.json({ message: err?.message || `Login failed (${res.status})` }, { status: res.status });
+  }
+  const data = await res.json();
+
+  const tokens = {
+    accessToken: data.accessToken,
+    refreshToken: data.refreshToken,
+    userId: data.userId,
+    roleName: data.roleName,
+  };
+
+  let name = (body.email as string).split('@')[0];
+  let unitName: string | undefined;
+  try {
+    const authHeader = { Authorization: `Bearer ${data.accessToken}` };
+    if (data.roleName === 'STAFF') {
+      // Targeted lookup — fetching the full staff list on every login is slow.
+      const me = await fetch(`${BASE}/api/staff/me`, { headers: authHeader }).then((r) => (r.ok ? r.json() : null));
+      if (me?.staffName) name = me.staffName;
+      if (me?.unitName) unitName = me.unitName;
+    } else if (data.roleName === 'STUDENT') {
+      const me = await fetch(`${BASE}/api/students/me`, { headers: authHeader }).then((r) => (r.ok ? r.json() : null));
+      if (me?.studentName) name = me.studentName;
+    }
+  } catch {
+    // name/unit lookup is best-effort
+  }
+
+  const role = clientRole(data.roleName, unitName);
+  const session = { role, email: body.email, name };
+
+  const response = NextResponse.json(
+    { role, email: body.email, name, path: rolePath(role) },
+    { status: 200 }
+  );
+  const cookieOpts = sessionCookieOptions(request);
+  response.cookies.set(SESSION_COOKIE, JSON.stringify(session), cookieOpts);
+  response.cookies.set(BACKEND_COOKIE, JSON.stringify(tokens), cookieOpts);
+  return response;
+}
