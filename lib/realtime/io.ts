@@ -24,29 +24,41 @@ export function initIO(httpServer: HTTPServer): Server {
       socket.join('presence:subscribers');
     }
 
-    socket.on('join', (room: string) => {
-      socket.join(room);
-    });
+    const isValidConversationId = (id: unknown): id is string =>
+      typeof id === 'string' && id.length > 0 && id.length <= 128 && /^[a-zA-Z0-9_-]+$/.test(id);
 
-    socket.on('leave', (room: string) => {
-      socket.leave(room);
-    });
-
-    socket.on('presence:update', (data: { online: boolean; last_seen: number }) => {
-      if (email) {
-        io.to('presence:subscribers').emit(WS_EVENTS.PRESENCE_UPDATE, { email, ...data });
+    socket.on('join', (room: unknown) => {
+      if (typeof room === 'string' && /^conversation:[a-zA-Z0-9_-]{1,128}$/.test(room)) {
+        socket.join(room);
       }
     });
 
-    socket.on('typing:start', (data: { conversationId: string }) => {
-      if (email) {
-        socket.to(`conversation:${data.conversationId}`).emit('typing:start', { conversationId: data.conversationId, userEmail: email });
+    socket.on('leave', (room: unknown) => {
+      if (typeof room === 'string' && /^conversation:[a-zA-Z0-9_-]{1,128}$/.test(room)) {
+        socket.leave(room);
       }
     });
 
-    socket.on('typing:stop', (data: { conversationId: string }) => {
-      if (email) {
-        socket.to(`conversation:${data.conversationId}`).emit('typing:stop', { conversationId: data.conversationId, userEmail: email });
+    socket.on('presence:update', (data: unknown) => {
+      if (email && typeof data === 'object' && data !== null) {
+        const { online, last_seen } = data as Record<string, unknown>;
+        if (typeof online === 'boolean' && typeof last_seen === 'number') {
+          io.to('presence:subscribers').emit(WS_EVENTS.PRESENCE_UPDATE, { email, online, last_seen });
+        }
+      }
+    });
+
+    socket.on('typing:start', (data: unknown) => {
+      if (email && typeof data === 'object' && data !== null && isValidConversationId((data as Record<string, unknown>).conversationId)) {
+        const { conversationId } = data as { conversationId: string };
+        socket.to(`conversation:${conversationId}`).emit('typing:start', { conversationId, userEmail: email });
+      }
+    });
+
+    socket.on('typing:stop', (data: unknown) => {
+      if (email && typeof data === 'object' && data !== null && isValidConversationId((data as Record<string, unknown>).conversationId)) {
+        const { conversationId } = data as { conversationId: string };
+        socket.to(`conversation:${conversationId}`).emit('typing:stop', { conversationId, userEmail: email });
       }
     });
 

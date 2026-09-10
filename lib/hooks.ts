@@ -527,12 +527,15 @@ function useTaggedPosts(aliases: string[]) {
   return { posts, loading, hasError, refresh };
 }
 
+const ANNOUNCEMENT_ALIASES = ['announcement', 'announcements'];
+const LOST_FOUND_ALIASES = ['lostfound', 'lostandfound'];
+
 export function useLostFoundPosts() {
-  return useTaggedPosts(['lostfound', 'lostandfound']);
+  return useTaggedPosts(LOST_FOUND_ALIASES);
 }
 
 export function useAnnouncementPosts() {
-  return useTaggedPosts(['announcement', 'announcements']);
+  return useTaggedPosts(ANNOUNCEMENT_ALIASES);
 }
 
 export function usePostShares(postId: string, initialCount = 0) {

@@ -32,7 +32,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Upload failed' }, { status: 500 });
   }
 }
-
-export const config = {
-  api: { bodyParser: false },
-};

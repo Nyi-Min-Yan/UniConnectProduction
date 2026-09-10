@@ -105,8 +105,6 @@ export const MAIN_NAV: Record<UserRole, NavItem[]> = {
       section: 'Academic',
       items: [
         { icon: 'FileText', label: 'Exam Results', id: 'exam-results' },
-        { icon: 'ClipboardCheck', label: 'Roll Call', id: 'roll-call' },
-        { icon: 'CalendarDays', label: 'Timetable', id: 'timetable' },
       ],
     },
     {

@@ -15,9 +15,22 @@ const ATTEMPT_TIMEOUT_MS = 120000;
 const MAX_ATTEMPTS = 5;
 const RETRY_BASE_DELAY_MS = 800;
 
+const MAX_VIDEO_CACHE = 10;
 const objectUrlCache = new Map<string, string>();
 
 function cacheVideoObjectUrl(url: string, objectUrl: string): void {
+  if (objectUrlCache.has(url)) {
+    objectUrlCache.set(url, objectUrl);
+    return;
+  }
+  if (objectUrlCache.size >= MAX_VIDEO_CACHE) {
+    const oldestKey = objectUrlCache.keys().next().value;
+    if (oldestKey !== undefined) {
+      const oldUrl = objectUrlCache.get(oldestKey);
+      if (oldUrl) URL.revokeObjectURL(oldUrl);
+      objectUrlCache.delete(oldestKey);
+    }
+  }
   objectUrlCache.set(url, objectUrl);
 }
 

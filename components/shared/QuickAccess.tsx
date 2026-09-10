@@ -5,8 +5,8 @@ import { FileText, ClipboardCheck, CalendarDays } from 'lucide-react';
 export default function QuickAccess({ role }: { role?: string }) {
   const items = [
     { icon: FileText, label: 'Exam Results', roles: ['admin', 'student-affair'] },
-    { icon: ClipboardCheck, label: 'Roll Call', roles: null },
-    { icon: CalendarDays, label: 'Timetable', roles: null },
+    { icon: ClipboardCheck, label: 'Roll Call', roles: ['student', 'lecturer', 'student-affair'] },
+    { icon: CalendarDays, label: 'Timetable', roles: ['student', 'lecturer', 'student-affair'] },
   ].filter((item) => !item.roles || item.roles.includes(role ?? ''));
 
   return (

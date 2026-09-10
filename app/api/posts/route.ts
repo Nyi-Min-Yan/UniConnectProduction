@@ -24,8 +24,8 @@ export async function GET(request: Request) {
 
     const db = getDb();
     const { searchParams } = new URL(request.url);
-    const limit = parseInt(searchParams.get('limit') || '20');
-    const offset = parseInt(searchParams.get('offset') || '0');
+    const limit = Math.min(100, Math.max(1, Number(searchParams.get('limit') || '20') || 20));
+    const offset = Math.max(0, Number(searchParams.get('offset') || '0') || 0);
     const authorEmail = searchParams.get('author');
     const status = searchParams.get('status');
     const tag = searchParams.get('tag');
