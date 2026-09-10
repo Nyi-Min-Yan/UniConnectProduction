@@ -20,12 +20,13 @@ import { useSession } from '@/components/shared/session';
 import { useMyProfile } from '@/components/shared/useMyProfile';
 import PendingPostApprovals from '@/components/shared/PendingPostApprovals';
 import { SecuritySettings } from '@/components/shared/SecuritySettings';
+import NotificationSettings from '@/components/shared/NotificationSettings';
 import {
   Users, GraduationCap,
   ClipboardCheck, CalendarDays, CalendarCheck,
   Coins, Search, MessageSquare, Newspaper,
   Filter, Plus, Download,
-  Check, X, Eye, BookOpen, MessageCircle, User, Ban,
+  Check, X, Eye, BookOpen, MessageCircle, User, Ban, Bell,
 } from 'lucide-react';
 import type {
   StudentData, LecturerData,
@@ -1046,7 +1047,7 @@ export { default as EventsSection } from '@/components/shared/EventsSection';
 
 export function SettingsSection() {
 const [settingsTab, setSettingsTab] = useState('Profile');
-  const settingsTabs = ['Profile', 'Security', 'Appearance', 'Blocked'];
+  const settingsTabs = ['Profile', 'Security', 'Appearance', 'Notifications', 'Blocked'];
   const { user: session } = useSession();
   const { profile, loading } = useMyProfile();
   const me = session?.email ?? '';
@@ -1097,6 +1098,9 @@ const [settingsTab, setSettingsTab] = useState('Profile');
           {settingsTab === 'Appearance' && (
             <ThemeSwitcher />
           )}
+          {settingsTab === 'Notifications' && (
+            <NotificationSettings bare />
+          )}
           {settingsTab === 'Blocked' && (
             <div className="bg-base-100 backdrop-blur-xl" style={{ borderRadius: 'var(--radius-lg)', border: '1px solid var(--surface-border)', boxShadow: 'var(--shadow-sm)', overflow: 'hidden' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 22px', borderBottom: '1px solid var(--surface)' }}>
@@ -1115,6 +1119,7 @@ const [settingsTab, setSettingsTab] = useState('Profile');
                 {t === 'Profile' && <User size={16} />}
                 {t === 'Security' && <Shield size={16} />}
                 {t === 'Appearance' && <Eye size={16} />}
+                {t === 'Notifications' && <Bell size={16} />}
                 {t === 'Blocked' && <Ban size={16} />}
                 {t === 'Language' && <Globe size={16} />}
                 {t === 'Help & Support' && <MessageCircle size={16} />}

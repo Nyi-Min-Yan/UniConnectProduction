@@ -25,6 +25,7 @@ import { useConversations, useEvents, useEventRegistrations } from '@/lib/hooks'
 import { useSession } from '@/components/shared/session';
 import { useMyProfile } from '@/components/shared/useMyProfile';
 import { SecuritySettings } from '@/components/shared/SecuritySettings';
+import NotificationSettings from '@/components/shared/NotificationSettings';
 export { default as FeedSection } from '@/components/shared/FeedSection';
 export { default as MessagesSection } from '@/components/shared/MessagesSection';
 export { default as ActivitySection } from '@/components/shared/ActivitySection';
@@ -434,7 +435,7 @@ export function SettingsSection() {
       <div className="bg-base-100 backdrop-blur-xl" style={{ borderRadius: 'var(--radius-lg)', border: '1px solid var(--surface-border)', boxShadow: 'var(--shadow-sm)', overflow: 'hidden' }}>
         <div style={{ padding: '18px 22px', borderBottom: '1px solid var(--surface)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            {['Profile', 'Security', 'Appearance', 'Blocked'].map((tab) => (
+            {['Profile', 'Security', 'Appearance', 'Notifications', 'Blocked'].map((tab) => (
               <button key={tab} onClick={() => setSettingsTab(tab)} style={{
                 padding: '12px 16px', fontSize: 13, fontWeight: 600,
                 color: settingsTab === tab ? 'var(--primary)' : 'var(--text-light)',
@@ -474,6 +475,8 @@ export function SettingsSection() {
           </div>
         ) : settingsTab === 'Appearance' ? (
           <ThemeSwitcher bare />
+        ) : settingsTab === 'Notifications' ? (
+          <NotificationSettings bare />
         ) : (
           <div style={{ padding: '24px 22px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>

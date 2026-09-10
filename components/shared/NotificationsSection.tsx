@@ -1,11 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Bell, Heart, MessageSquare, Share2, UserPlus, CalendarCheck, ShieldCheck, CheckCheck, FileText, Volume2, VolumeX } from 'lucide-react';
+import { Bell, Heart, MessageSquare, Share2, UserPlus, CalendarCheck, ShieldCheck, CheckCheck, FileText } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useNotifications } from '@/lib/hooks';
 import { useSession } from './session';
-import { isNotificationSoundEnabled, setNotificationSoundEnabled } from './RealtimeAlerts';
 import { StaggerGroup, StaggerItem } from './anim';
 import type { Notification } from '@/lib/hooks';
 
@@ -40,13 +39,6 @@ export default function NotificationsSection() {
 
   const { notifications, loading } = useNotifications(me, myRole);
   const [localRead, setLocalRead] = useState<Set<string>>(new Set());
-  const [soundOn, setSoundOn] = useState(true);
-
-  useEffect(() => {
-    // Read persisted sound preference post-hydration to avoid SSR mismatch.
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- sync after hydration
-    setSoundOn(isNotificationSoundEnabled());
-  }, []);
 
   useEffect(() => {
     fetch('/api/notifications/cleanup', { method: 'POST' }).catch(() => {});
@@ -142,19 +134,6 @@ export default function NotificationsSection() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => {
-              const next = !soundOn;
-              setSoundOn(next);
-              setNotificationSoundEnabled(next);
-            }}
-            className="btn btn-ghost btn-sm gap-1.5"
-            style={{ color: soundOn ? 'var(--primary)' : 'var(--text-lighter)', border: '1.5px solid var(--surface-border)' }}
-            title={soundOn ? 'Mute notification sounds' : 'Enable notification sounds'}
-          >
-            {soundOn ? <Volume2 size={14} /> : <VolumeX size={14} />}
-            {soundOn ? 'Sound on' : 'Sound off'}
-          </button>
           <button
             onClick={handleMarkAll}
             className="btn btn-ghost btn-sm gap-2"

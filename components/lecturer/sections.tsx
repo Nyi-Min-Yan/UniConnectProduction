@@ -16,6 +16,7 @@ import AnnouncementsPage from '@/components/shared/AnnouncementsSection';
 import { useSession } from '@/components/shared/session';
 import { useMyProfile } from '@/components/shared/useMyProfile';
 import { SecuritySettings } from '@/components/shared/SecuritySettings';
+import NotificationSettings from '@/components/shared/NotificationSettings';
 import { ExportTimetableModal } from '@/components/shared/ExportModals';
 import { toast } from 'sonner';
 import {
@@ -2794,7 +2795,9 @@ export function SharedTimetableWorkspace({ generationId, onBack, onNotFound, ini
   //    grabbing P1 or P2 moves the session so the grabbed cell lands on the
   //    drop cell and the other period follows adjacent (the backend always
   //    keeps the pair together, so this splits the drag handle, not the data).
-  const [dragMode, setDragMode] = useState<'consecutive' | 'single'>('consecutive');
+  const [dragMode, setDragMode] = useState<'consecutive' | 'single'>(() => {
+    try { return (localStorage.getItem('tt-drag-mode') as 'consecutive' | 'single') || 'consecutive'; } catch { return 'consecutive'; }
+  });
   const dragSpanRef = useRef(1);
   const [pendingSwap, setPendingSwap] = useState<PendingSwapState | null>(null);
   // Why the current swap candidate is blocked (mirrors the backend scan), shown
@@ -3104,6 +3107,7 @@ export function SharedTimetableWorkspace({ generationId, onBack, onNotFound, ini
                 s.endPeriodNo >= sBp
             );
             if (swapAnimTimerRef.current) clearTimeout(swapAnimTimerRef.current);
+            swapAnimRenderedRef.current = false;
             setSwapAnim({
               key: Date.now(),
               aDay: sA,
@@ -3113,7 +3117,6 @@ export function SharedTimetableWorkspace({ generationId, onBack, onNotFound, ini
               aLabel: dragged.courseCode,
               bLabel: partner?.courseCode ?? '',
             });
-            swapAnimTimerRef.current = setTimeout(() => setSwapAnim(null), SWAP_ANIM_MS);
           }
         }
         break;
@@ -3216,10 +3219,33 @@ export function SharedTimetableWorkspace({ generationId, onBack, onNotFound, ini
   const lastDragRef = useRef<{ day: number; period: number; at: number } | null>(null);
   const dragMoveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const swapAnimTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const swapAnimRenderedRef = useRef(false);
   useEffect(() => () => {
     if (dragMoveTimerRef.current) clearTimeout(dragMoveTimerRef.current);
     if (swapAnimTimerRef.current) clearTimeout(swapAnimTimerRef.current);
   }, []);
+
+  // Start the animation-clear timer only once the overlay actually becomes
+  // visible (schedules loaded). A remote user may receive SWAP_ANIMATED before
+  // their schedules finish loading — starting the countdown at arrival would cut
+  // the visible animation short. Once the grid can paint the overlay we run the
+  // full SWAP_ANIM_MS.
+  useEffect(() => {
+    if (!swapAnim) return;
+    if (swapAnimRenderedRef.current) return;
+    const visible = (schedules ?? []).some(
+      (c) =>
+        (c.dayOfWeek === swapAnim.aDay && c.startPeriodNo <= swapAnim.aPeriod && c.endPeriodNo >= swapAnim.aPeriod) ||
+        (c.dayOfWeek === swapAnim.bDay && c.startPeriodNo <= swapAnim.bPeriod && c.endPeriodNo >= swapAnim.bPeriod)
+    );
+    if (!visible) return;
+    swapAnimRenderedRef.current = true;
+    if (swapAnimTimerRef.current) clearTimeout(swapAnimTimerRef.current);
+    swapAnimTimerRef.current = setTimeout(() => {
+      swapAnimRenderedRef.current = false;
+      setSwapAnim(null);
+    }, SWAP_ANIM_MS);
+  }, [swapAnim, schedules]);
 
   const sendDragMove = useCallback((day: number, period: number) => {
     const last = lastDragRef.current;
@@ -3697,7 +3723,9 @@ export function SharedTimetableWorkspace({ generationId, onBack, onNotFound, ini
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : 'Could not undo');
     } finally {
-      setSwapAnim(null);
+      if (swapAnimTimerRef.current) clearTimeout(swapAnimTimerRef.current);
+      swapAnimRenderedRef.current = true;
+      swapAnimTimerRef.current = setTimeout(() => { swapAnimRenderedRef.current = false; setSwapAnim(null); }, SWAP_ANIM_MS);
       setSaving(false);
     }
   };
@@ -3763,7 +3791,9 @@ export function SharedTimetableWorkspace({ generationId, onBack, onNotFound, ini
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : 'Could not redo');
     } finally {
-      setSwapAnim(null);
+      if (swapAnimTimerRef.current) clearTimeout(swapAnimTimerRef.current);
+      swapAnimRenderedRef.current = true;
+      swapAnimTimerRef.current = setTimeout(() => { swapAnimRenderedRef.current = false; setSwapAnim(null); }, SWAP_ANIM_MS);
       setSaving(false);
     }
   };
@@ -4555,7 +4585,7 @@ export function SharedTimetableWorkspace({ generationId, onBack, onNotFound, ini
                       Drag
                     </span>
                     <button
-                      onClick={() => setDragMode('consecutive')}
+                      onClick={() => { setDragMode('consecutive'); try { localStorage.setItem('tt-drag-mode', 'consecutive'); } catch {} }}
                       className="cursor-pointer"
                       style={{
                         fontSize: 11,
@@ -4570,7 +4600,7 @@ export function SharedTimetableWorkspace({ generationId, onBack, onNotFound, ini
                       Consecutive
                     </button>
                     <button
-                      onClick={() => setDragMode('single')}
+                      onClick={() => { setDragMode('single'); try { localStorage.setItem('tt-drag-mode', 'single'); } catch {} }}
                       className="cursor-pointer"
                       style={{
                         fontSize: 11,
@@ -6802,7 +6832,7 @@ export function SettingsSection() {
       <h1 style={{ fontSize: 26, fontWeight: 700, color: 'var(--accent)', marginBottom: 4 }}>Settings</h1>
       <p style={{ fontSize: 14, color: 'var(--text-light)', marginBottom: 20 }}>Manage your account and preferences</p>
       <div style={{ display: 'flex', gap: 4, marginBottom: 18, borderBottom: '1px solid var(--surface)' }}>
-        {[ 'Profile', 'Security', 'Appearance', 'Blocked'].map(t => (
+        {[ 'Profile', 'Security', 'Appearance', 'Notifications', 'Blocked'].map(t => (
           <button key={t} onClick={() => setSettingsTab(t)}
             style={{ padding: '12px 16px', fontSize: 13, fontWeight: 600, color: settingsTab === t ? 'var(--primary)' : 'var(--text-light)', cursor: 'pointer', borderBottom: '2.5px solid transparent', borderBottomColor: settingsTab === t ? 'var(--primary)' : 'transparent', background: 'none', borderTop: 'none', borderLeft: 'none', borderRight: 'none' }}>{t}</button>
         ))}
@@ -6852,6 +6882,8 @@ export function SettingsSection() {
         </div>
       ) : settingsTab === 'Appearance' ? (
         <ThemeSwitcher />
+      ) : settingsTab === 'Notifications' ? (
+        <NotificationSettings bare />
       ) : (
         <div className="bg-base-100 backdrop-blur-xl" style={{ borderRadius: 'var(--radius-lg)', border: '1px solid var(--surface-border)', boxShadow: 'var(--shadow-sm)', overflow: 'hidden' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 22px', borderBottom: '1px solid var(--surface)' }}>

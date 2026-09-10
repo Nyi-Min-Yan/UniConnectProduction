@@ -17,6 +17,7 @@ import { apiFetch, getPublishedSchedules } from '@/components/shared/api';
 import { useSession } from '@/components/shared/session';
 import { useMyProfile } from '@/components/shared/useMyProfile';
 import { SecuritySettings } from '@/components/shared/SecuritySettings';
+import NotificationSettings from '@/components/shared/NotificationSettings';
 import { initialsOf } from '@/components/shared/useUniversityPeople';
 import type { StudentRecord, AcademicTermRecord, ScheduleResponse } from '@/components/shared/api';
 import { useUniversityData } from '@/components/shared/useUniversityData';
@@ -649,7 +650,7 @@ export function SettingsSection() {
       <h1 style={{ fontSize: 26, fontWeight: 700, color: 'var(--accent)', marginBottom: 4 }}>Settings</h1>
       <p style={{ fontSize: 14, color: 'var(--text-light)', marginBottom: 20 }}>Manage your account and preferences</p>
       <div style={{ display: 'flex', gap: 4, marginBottom: 18, borderBottom: '1px solid var(--surface)' }}>
-        {['Profile', 'Security', 'Appearance', 'Blocked'].map(t => (
+        {['Profile', 'Security', 'Appearance', 'Notifications', 'Blocked'].map(t => (
           <button key={t} onClick={() => setSettingsTab(t)}
             style={{ padding: '12px 16px', fontSize: 13, fontWeight: 600, color: settingsTab === t ? 'var(--primary)' : 'var(--text-light)', cursor: 'pointer', borderBottom: '2.5px solid transparent', borderBottomColor: settingsTab === t ? 'var(--primary)' : 'transparent', background: 'none', borderTop: 'none', borderLeft: 'none', borderRight: 'none' }}>{t}</button>
         ))}
@@ -703,6 +704,8 @@ export function SettingsSection() {
         <div className="bg-base-100 backdrop-blur-xl" style={cardStyle}>
           <ThemeSwitcher bare />
         </div>
+      ) : settingsTab === 'Notifications' ? (
+        <NotificationSettings bare />
       ) : (
         <div className="bg-base-100 backdrop-blur-xl" style={cardStyle}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 22px', borderBottom: '1px solid var(--surface)' }}>

@@ -4,6 +4,7 @@ import { useState, useRef, useCallback } from 'react';
 import { Image as ImageIcon, Video, Send, X, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useSession } from './session';
+import { playEntranceSong, stopEntranceSong } from '@/lib/entrance';
 
 const TAG_OPTIONS = [
   { label: 'General', color: 'badge-ghost', emoji: '💬' },
@@ -193,6 +194,7 @@ export default function FeedComposer({ avatarInitials }: FeedComposerProps) {
       return;
     }
     setSubmitting(true);
+    playEntranceSong({ loop: true });
     try {
       let mediaVideoUrl: string | null = null;
       let videoFrame: string | null = null;
@@ -235,6 +237,7 @@ export default function FeedComposer({ avatarInitials }: FeedComposerProps) {
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to submit post. Please try again.');
     } finally {
+      stopEntranceSong();
       setSubmitting(false);
     }
   }, [text, images, videoFile, selectedTag, session, submitting, removeVideo]);

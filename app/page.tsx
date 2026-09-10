@@ -8,6 +8,7 @@ import { GraduationCap, Users, ShieldCheck, LogIn, Mail, Lock, BookOpen } from '
 import { LOGIN_CREDENTIALS } from '@/components/shared/constants';
 import { backendLogin } from '@/components/shared/api';
 import type { LoginResult } from '@/components/shared/api';
+import { playEntranceSong } from '@/lib/entrance';
 import ThemeToggle from '@/components/shared/ThemeToggle';
 import { useSession } from '@/components/shared/session';
 
@@ -158,6 +159,7 @@ export default function Home() {
     setLoggingIn(false);
     applySession({ role: result.role, email: result.email, name: result.name });
     toast.success(`Welcome back, ${result.name}!`);
+    playEntranceSong();
     router.replace(result.path);
   };
 
